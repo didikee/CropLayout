@@ -33,7 +33,7 @@
                 android:src="@drawable/butterfly"
                 />
 
-            <com.any.cropper.AnyCropView
+            <com.didikee.croper.CropLayoutView
                 android:id="@+id/CropImageView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
