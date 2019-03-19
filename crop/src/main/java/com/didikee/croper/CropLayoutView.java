@@ -23,6 +23,7 @@ import android.graphics.RectF;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -79,9 +80,9 @@ public class CropLayoutView extends View {
     // Length of one side of the corner handle.
     private float mCornerLength;
 
-    // The bounding box around the Bitmap that we are cropping.
+    // 整个裁剪画布的大小
     @NonNull
-    private RectF mBitmapRect = new RectF();
+    private RectF mTotalCropRect = new RectF();
 
     // Holds the x and y offset between the exact touch location and the exact
     // handle location that is activated. There may be an offset because we
@@ -143,16 +144,35 @@ public class CropLayoutView extends View {
         mCornerThickness = resources.getDimension(R.dimen.corner_thickness);
         mCornerLength = resources.getDimension(R.dimen.corner_length);
     }
+    // Paint Methods ////////////////////////////////////////////////////////////////////////////////
+
+    public void setBorderColor(int color) {
+        mBorderPaint.setColor(color);
+    }
+
+    public void setBorderThickness(int pixel) {
+        if (pixel > 0) {
+            this.mBorderThickness = pixel;
+            mBorderPaint.setStrokeWidth(pixel);
+        }
+    }
+
+    public void setGuideLineColor(int color) {
+        mGuidelinePaint.setColor(color);
+    }
+
+    public void setCornerColor(int color) {
+        mCornerPaint.setColor(color);
+    }
 
     // View Methods ////////////////////////////////////////////////////////////////////////////////
 
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-
         super.onLayout(changed, left, top, right, bottom);
-
-        mBitmapRect = getBitmapRect();
-        initCropWindow(mBitmapRect);
+        mTotalCropRect.set(0, 0, getWidth(), getHeight());
+        Log.d(TAG, "onLayout mTotalCropRect: " + mTotalCropRect.toString());
+        initCropWindow(mTotalCropRect);
     }
 
     @Override
@@ -293,52 +313,53 @@ public class CropLayoutView extends View {
 //                                   (int) cropHeight);
 //    }
 
-    // Private Methods /////////////////////////////////////////////////////////////////////////////
-
     /**
-     * Gets the bounding rectangle of the bitmap within the ImageView.
+     * 得到的是百分比，值在(0,1]之间
+     * @return
      */
-    private RectF getBitmapRect() {
-
-//        final Drawable drawable = getDrawable();
-//        if (drawable == null) {
-//            return new RectF();
-//        }
-//
-//        // Get image matrix values and place them in an array.
-//        final float[] matrixValues = new float[9];
-//        getImageMatrix().getValues(matrixValues);
-//
-//        // Extract the scale and translation values from the matrix.
-//        final float scaleX = matrixValues[Matrix.MSCALE_X];
-//        final float scaleY = matrixValues[Matrix.MSCALE_Y];
-//        final float transX = matrixValues[Matrix.MTRANS_X];
-//        final float transY = matrixValues[Matrix.MTRANS_Y];
-//
-//        // Get the width and height of the original bitmap.
-//        final int drawableIntrinsicWidth = drawable.getIntrinsicWidth();
-//        final int drawableIntrinsicHeight = drawable.getIntrinsicHeight();
-
+    public RectF getCropRectF() {
+        float left = Edge.LEFT.getCoordinate();
+        float top = Edge.TOP.getCoordinate();
+        float right = Edge.RIGHT.getCoordinate();
+        float bottom = Edge.BOTTOM.getCoordinate();
         int width = getWidth();
         int height = getHeight();
-
-        final float scaleX = 1f;
-        final float scaleY = 1f;
-        final float transX = 0f;
-        final float transY = 0f;
-
-        // Calculate the dimensions as seen on screen.
-        final int drawableDisplayWidth = Math.round(width * scaleX);
-        final int drawableDisplayHeight = Math.round(height * scaleY);
-
-        // Get the Rect of the displayed image within the ImageView.
-        final float left = Math.max(transX, 0);
-        final float top = Math.max(transY, 0);
-        final float right = Math.min(left + drawableDisplayWidth, getWidth());
-        final float bottom = Math.min(top + drawableDisplayHeight, getHeight());
-
-        return new RectF(left, top, right, bottom);
+        return new RectF(left / width, top / height, right / width, bottom / height);
     }
+
+    public void updateCropWindow(RectF displayRectF) {
+        if (displayRectF != null) {
+            initCropWindow(displayRectF);
+        }
+    }
+
+    // Private Methods /////////////////////////////////////////////////////////////////////////////
+
+//    /**
+//     * Gets the bounding rectangle of the bitmap within the ImageView.
+//     */
+//    private RectF getDefaultCropWindowRect() {
+//        int width = getWidth();
+//        int height = getHeight();
+//
+//        final float scaleX = 1f;
+//        final float scaleY = 1f;
+//        final float transX = 0f;
+//        final float transY = 0f;
+//
+//        // Calculate the dimensions as seen on screen.
+//        final int drawableDisplayWidth = Math.round(width * scaleX);
+//        final int drawableDisplayHeight = Math.round(height * scaleY);
+//
+//        // Get the Rect of the displayed image within the ImageView.
+//        final float left = Math.max(transX, 0);
+//        final float top = Math.max(transY, 0);
+//        final float right = Math.min(left + drawableDisplayWidth, getWidth());
+//        final float bottom = Math.min(top + drawableDisplayHeight, getHeight());
+//
+//        RectF rectF = new RectF(left, top, right, bottom);
+//        return rectF;
+//    }
 
     /**
      * Initialize the crop window by setting the proper {@link Edge} values.
@@ -355,15 +376,10 @@ public class CropLayoutView extends View {
             initCropWindowWithFixedAspectRatio(bitmapRect);
 
         } else {
-
-            // Initialize crop window to have 10% padding w/ respect to Drawable's bounds.
-            final float horizontalPadding = 0.1f * bitmapRect.width();
-            final float verticalPadding = 0.1f * bitmapRect.height();
-
-            Edge.LEFT.setCoordinate(bitmapRect.left + horizontalPadding);
-            Edge.TOP.setCoordinate(bitmapRect.top + verticalPadding);
-            Edge.RIGHT.setCoordinate(bitmapRect.right - horizontalPadding);
-            Edge.BOTTOM.setCoordinate(bitmapRect.bottom - verticalPadding);
+            Edge.LEFT.setCoordinate(bitmapRect.left);
+            Edge.TOP.setCoordinate(bitmapRect.top);
+            Edge.RIGHT.setCoordinate(bitmapRect.right);
+            Edge.BOTTOM.setCoordinate(bitmapRect.bottom);
         }
     }
 
@@ -393,7 +409,7 @@ public class CropLayoutView extends View {
 
     private void drawDarkenedSurroundingArea(@NonNull Canvas canvas) {
 
-        final RectF bitmapRect = mBitmapRect;
+        final RectF bitmapRect = mTotalCropRect;
 
         final float left = Edge.LEFT.getCoordinate();
         final float top = Edge.TOP.getCoordinate();
@@ -552,9 +568,9 @@ public class CropLayoutView extends View {
 
         // Calculate the new crop window size/position.
         if (mFixAspectRatio) {
-            mPressedHandle.updateCropWindow(x, y, getTargetAspectRatio(), mBitmapRect, mSnapRadius);
+            mPressedHandle.updateCropWindow(x, y, getTargetAspectRatio(), mTotalCropRect, mSnapRadius);
         } else {
-            mPressedHandle.updateCropWindow(x, y, mBitmapRect, mSnapRadius);
+            mPressedHandle.updateCropWindow(x, y, mTotalCropRect, mSnapRadius);
         }
         invalidate();
     }

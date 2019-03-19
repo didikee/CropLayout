@@ -1,7 +1,9 @@
 package com.didikee.croplayout.demo;
 
+import android.graphics.RectF;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
@@ -113,6 +115,9 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
 //                final Bitmap croppedImage = cropImageView.getCroppedImage();
 //                croppedImageView.setImageBitmap(croppedImage);
+
+                RectF cropRectF = cropImageView.getCropRectF();
+                Log.d("AA", "cropRectF: " + cropRectF.toString());
             }
         });
     }
