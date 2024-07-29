@@ -1,4 +1,4 @@
-package com.didikee.croper.util;
+package com.github.croper.util;
 
 public class MathUtil {
 

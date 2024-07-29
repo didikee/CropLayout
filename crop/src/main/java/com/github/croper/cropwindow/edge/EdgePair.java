@@ -11,7 +11,7 @@
  * governing permissions and limitations under the License. 
  */
 
-package com.didikee.croper.cropwindow.edge;
+package com.github.croper.cropwindow.edge;
 
 /**
  * Simple class to hold a pair of Edges.

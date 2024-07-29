@@ -11,12 +11,12 @@
  * governing permissions and limitations under the License. 
  */
 
-package com.didikee.croper.util;
+package com.github.croper.util;
 
 import android.graphics.PointF;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
-import com.didikee.croper.cropwindow.handle.Handle;
+import com.github.croper.cropwindow.handle.Handle;
 
 
 /**

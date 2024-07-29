@@ -11,7 +11,7 @@
  * governing permissions and limitations under the License.
  */
 
-package com.didikee.croper;
+package com.github.croper;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -20,18 +20,18 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.PointF;
 import android.graphics.RectF;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
-import com.didikee.croper.cropwindow.edge.Edge;
-import com.didikee.croper.cropwindow.handle.Handle;
-import com.didikee.croper.util.AspectRatioUtil;
-import com.didikee.croper.util.HandleUtil;
-import com.didikee.croper.util.PaintUtil;
+import com.github.croper.cropwindow.edge.Edge;
+import com.github.croper.cropwindow.handle.Handle;
+import com.github.croper.util.AspectRatioUtil;
+import com.github.croper.util.HandleUtil;
+import com.github.croper.util.PaintUtil;
 
 
 /**
@@ -57,7 +57,7 @@ public class CropLayoutView extends View {
     // The Paint used to draw the guidelines within the crop area when pressed.
     private Paint mGuidelinePaint;
 
-    // The Paint used to draw the corners of the Border
+    // 用户画转角
     private Paint mCornerPaint;
 
     // The Paint used to darken the surrounding areas outside the crop area.
@@ -105,6 +105,12 @@ public class CropLayoutView extends View {
     // Mode indicating how/whether to show the guidelines; must be one of GUIDELINES_OFF, GUIDELINES_ON_TOUCH, GUIDELINES_ON.
     private int mGuidelinesMode = 1;
 
+    // 裁剪布局变化的时候调用
+    private OnCropParamsChangeListener onCropParamsChangeListener;
+
+    // view只可看，不可编辑
+    private boolean viewMode = false;
+
     // Constructors ////////////////////////////////////////////////////////////////////////////////
 
     public CropLayoutView(Context context) {
@@ -143,6 +149,11 @@ public class CropLayoutView extends View {
         mBorderThickness = resources.getDimension(R.dimen.border_thickness);
         mCornerThickness = resources.getDimension(R.dimen.corner_thickness);
         mCornerLength = resources.getDimension(R.dimen.corner_length);
+
+        Edge.LEFT.setCoordinate(0);
+        Edge.TOP.setCoordinate(0);
+        Edge.RIGHT.setCoordinate(0);
+        Edge.BOTTOM.setCoordinate(0);
     }
     // Paint Methods ////////////////////////////////////////////////////////////////////////////////
 
@@ -165,6 +176,11 @@ public class CropLayoutView extends View {
         mCornerPaint.setColor(color);
     }
 
+    public void setOnCropParamsChangeListener(OnCropParamsChangeListener onCropParamsChangeListener) {
+        this.onCropParamsChangeListener = onCropParamsChangeListener;
+    }
+
+
     // View Methods ////////////////////////////////////////////////////////////////////////////////
 
     @Override
@@ -172,25 +188,38 @@ public class CropLayoutView extends View {
         super.onLayout(changed, left, top, right, bottom);
         mTotalCropRect.set(0, 0, getWidth(), getHeight());
         Log.d(TAG, "onLayout mTotalCropRect: " + mTotalCropRect.toString());
-        initCropWindow(mTotalCropRect);
+        if (Edge.LEFT.getCoordinate() == 0
+                && Edge.TOP.getCoordinate() == 0
+                && Edge.RIGHT.getCoordinate() == 0
+                && Edge.BOTTOM.getCoordinate() == 0) {
+            initCropWindow(mTotalCropRect);
+        }
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
-
         super.onDraw(canvas);
+        if (viewMode) {
+            // 画裁剪周围的黑色区域
+            drawDarkenedSurroundingArea(canvas);
+        } else {
+            // 画裁剪周围的黑色区域
+            drawDarkenedSurroundingArea(canvas);
+            // 画指示线
+            drawGuidelines(canvas);
+            // 画边框
+            drawBorder(canvas);
+            // 画拐角
+            drawCorners(canvas);
+        }
 
-        drawDarkenedSurroundingArea(canvas);
-        drawGuidelines(canvas);
-        drawBorder(canvas);
-        drawCorners(canvas);
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
 
         // If this View is not enabled, don't allow for touch interactions.
-        if (!isEnabled()) {
+        if (!isEnabled() || viewMode) {
             return false;
         }
 
@@ -240,7 +269,9 @@ public class CropLayoutView extends View {
      */
     public void setFixedAspectRatio(boolean fixAspectRatio) {
         mFixAspectRatio = fixAspectRatio;
-        requestLayout(); // Request measure/layout to be run again.
+        initCropWindow(mTotalCropRect);
+        invalidate();
+        notifyCropChange();
     }
 
     /**
@@ -261,8 +292,39 @@ public class CropLayoutView extends View {
         mAspectRatioY = aspectRatioY;
 
         if (mFixAspectRatio) {
-            requestLayout(); // Request measure/layout to be run again.
+            initCropWindow(mTotalCropRect);
+            invalidate();
         }
+        notifyCropChange();
+    }
+
+    /**
+     * 恢复状态
+     * @param cropRectF
+     * @param aspectRatioX
+     * @param aspectRatioY
+     * @param fixAspectRatio
+     */
+    public void recovery(RectF cropRectF, int aspectRatioX, int aspectRatioY, boolean fixAspectRatio) {
+        if (cropRectF == null || aspectRatioX < 0 || aspectRatioY < 0) {
+            return;
+        }
+        int width = getWidth();
+        int height = getHeight();
+        Edge.LEFT.setCoordinate(cropRectF.left * width);
+        Edge.TOP.setCoordinate(cropRectF.top * height);
+        Edge.RIGHT.setCoordinate(cropRectF.right * width);
+        Edge.BOTTOM.setCoordinate(cropRectF.bottom * height);
+        mFixAspectRatio = fixAspectRatio;
+        if (mFixAspectRatio) {
+            mAspectRatioX = aspectRatioX;
+            mAspectRatioY = aspectRatioY;
+        }
+        invalidate();
+    }
+
+    public void recovery(RectF cropRectF) {
+        recovery(cropRectF, 0, 0, false);
     }
 
     /**
@@ -312,6 +374,17 @@ public class CropLayoutView extends View {
 //                                   (int) cropWidth,
 //                                   (int) cropHeight);
 //    }
+    public int getAspectRatioX() {
+        return mAspectRatioX;
+    }
+
+    public int getAspectRatioY() {
+        return mAspectRatioY;
+    }
+
+    public boolean isFixAspectRatio() {
+        return mFixAspectRatio;
+    }
 
     /**
      * 得到的是百分比，值在(0,1]之间
@@ -330,7 +403,38 @@ public class CropLayoutView extends View {
     public void updateCropWindow(RectF displayRectF) {
         if (displayRectF != null) {
             initCropWindow(displayRectF);
+            invalidate();
         }
+    }
+
+    @Deprecated
+    public void hideCropActionView() {
+//        this.viewMode = true;
+        setVisibility(INVISIBLE);
+    }
+
+    @Deprecated
+    public void showCropActionView() {
+//        this.viewMode = false;
+        setVisibility(VISIBLE);
+    }
+
+    public void enableViewMode() {
+        this.viewMode = true;
+        invalidate();
+    }
+
+    public void disableViewMode() {
+        this.viewMode = false;
+        invalidate();
+    }
+
+    /**
+     * 手动调用，让进度重新回调出去
+     */
+    @Deprecated
+    public void performCropChangeListener() {
+        notifyCropChange();
     }
 
     // Private Methods /////////////////////////////////////////////////////////////////////////////
@@ -387,9 +491,11 @@ public class CropLayoutView extends View {
 
         // If the image aspect ratio is wider than the crop aspect ratio,
         // then the image height is the determining initial length. Else, vice-versa.
-        if (AspectRatioUtil.calculateAspectRatio(bitmapRect) > getTargetAspectRatio()) {
+        float targetAspectRatio = getTargetAspectRatio();
 
-            final float cropWidth = AspectRatioUtil.calculateWidth(bitmapRect.height(), getTargetAspectRatio());
+        if (AspectRatioUtil.calculateAspectRatio(bitmapRect) > targetAspectRatio) {
+
+            final float cropWidth = AspectRatioUtil.calculateWidth(bitmapRect.height(), targetAspectRatio);
 
             Edge.LEFT.setCoordinate(bitmapRect.centerX() - cropWidth / 2f);
             Edge.TOP.setCoordinate(bitmapRect.top);
@@ -398,7 +504,7 @@ public class CropLayoutView extends View {
 
         } else {
 
-            final float cropHeight = AspectRatioUtil.calculateHeight(bitmapRect.width(), getTargetAspectRatio());
+            final float cropHeight = AspectRatioUtil.calculateHeight(bitmapRect.width(), targetAspectRatio);
 
             Edge.LEFT.setCoordinate(bitmapRect.left);
             Edge.TOP.setCoordinate(bitmapRect.centerY() - cropHeight / 2f);
@@ -465,14 +571,20 @@ public class CropLayoutView extends View {
         canvas.drawLine(left, y2, right, y2, mGuidelinePaint);
     }
 
+    /**
+     * 边框往内部偏移半个边框线的厚度，防止在最大的时候边框线画到view外面去了，导致不可见
+     * @param canvas
+     */
     private void drawBorder(@NonNull Canvas canvas) {
+        float thicknessOffset = mBorderPaint.getStrokeWidth() / 2;
 
-        canvas.drawRect(Edge.LEFT.getCoordinate(),
-                Edge.TOP.getCoordinate(),
-                Edge.RIGHT.getCoordinate(),
-                Edge.BOTTOM.getCoordinate(),
+        canvas.drawRect(Edge.LEFT.getCoordinate() + thicknessOffset,
+                Edge.TOP.getCoordinate() + thicknessOffset,
+                Edge.RIGHT.getCoordinate() - thicknessOffset,
+                Edge.BOTTOM.getCoordinate() - thicknessOffset,
                 mBorderPaint);
     }
+
 
     private void drawCorners(@NonNull Canvas canvas) {
 
@@ -481,30 +593,57 @@ public class CropLayoutView extends View {
         final float right = Edge.RIGHT.getCoordinate();
         final float bottom = Edge.BOTTOM.getCoordinate();
 
-        // Absolute value of the offset by which to draw the corner line such that its inner edge is flush with the border's inner edge.
-        final float lateralOffset = (mCornerThickness - mBorderThickness) / 2f;
-        // Absolute value of the offset by which to start the corner line such that the line is drawn all the way to form a corner edge with the adjacent side.
-        final float startOffset = mCornerThickness - (mBorderThickness / 2f);
+        // 线边缘到边线的距离
+        float padding = mBorderPaint.getStrokeWidth() * 2;
+        // 线的中心到边线的距离
+        float lineOffset = padding + mCornerPaint.getStrokeWidth() / 2;
+
 
         // Top-left corner: left side
-        canvas.drawLine(left - lateralOffset, top - startOffset, left - lateralOffset, top + mCornerLength, mCornerPaint);
+        canvas.drawLine(left + lineOffset, top + padding, left + lineOffset, top + padding + mCornerLength, mCornerPaint);
         // Top-left corner: top side
-        canvas.drawLine(left - startOffset, top - lateralOffset, left + mCornerLength, top - lateralOffset, mCornerPaint);
+        canvas.drawLine(left + padding, top + lineOffset, left + mCornerLength + padding, top + lineOffset, mCornerPaint);
 
         // Top-right corner: right side
-        canvas.drawLine(right + lateralOffset, top - startOffset, right + lateralOffset, top + mCornerLength, mCornerPaint);
+        canvas.drawLine(right - lineOffset, top + padding, right - lineOffset, top + mCornerLength + padding, mCornerPaint);
         // Top-right corner: top side
-        canvas.drawLine(right + startOffset, top - lateralOffset, right - mCornerLength, top - lateralOffset, mCornerPaint);
+        canvas.drawLine(right - mCornerLength - padding, top + lineOffset, right - padding, top + lineOffset, mCornerPaint);
 
         // Bottom-left corner: left side
-        canvas.drawLine(left - lateralOffset, bottom + startOffset, left - lateralOffset, bottom - mCornerLength, mCornerPaint);
+        canvas.drawLine(left + lineOffset, bottom - mCornerLength - padding, left + lineOffset, bottom - padding, mCornerPaint);
         // Bottom-left corner: bottom side
-        canvas.drawLine(left - startOffset, bottom + lateralOffset, left + mCornerLength, bottom + lateralOffset, mCornerPaint);
+        canvas.drawLine(left + padding, bottom - lineOffset, left + mCornerLength + padding, bottom - lineOffset, mCornerPaint);
 
         // Bottom-right corner: right side
-        canvas.drawLine(right + lateralOffset, bottom + startOffset, right + lateralOffset, bottom - mCornerLength, mCornerPaint);
+        canvas.drawLine(right - lineOffset, bottom - mCornerLength - padding, right - lineOffset, bottom - padding, mCornerPaint);
         // Bottom-right corner: bottom side
-        canvas.drawLine(right + startOffset, bottom + lateralOffset, right - mCornerLength, bottom + lateralOffset, mCornerPaint);
+        canvas.drawLine(right - mCornerLength - padding, bottom - lineOffset, right - padding, bottom - lineOffset, mCornerPaint);
+
+
+//        // Absolute value of the offset by which to draw the corner line such that its inner edge is flush with the border's inner edge.
+//        final float hOffset = (mCornerThickness - mBorderThickness) / 2f;
+//        // Absolute value of the offset by which to start the corner line such that the line is drawn all the way to form a corner edge with the adjacent side.
+//        final float vOffset = mCornerThickness - (mBorderThickness / 2f);
+//
+//        // Top-left corner: left side
+//        canvas.drawLine(left - hOffset, top - vOffset, left - hOffset, top + mCornerLength, mCornerPaint);
+//        // Top-left corner: top side
+//        canvas.drawLine(left - vOffset, top - hOffset, left + mCornerLength, top - hOffset, mCornerPaint);
+//
+//        // Top-right corner: right side
+//        canvas.drawLine(right + hOffset, top - vOffset, right + hOffset, top + mCornerLength, mCornerPaint);
+//        // Top-right corner: top side
+//        canvas.drawLine(right + vOffset, top - hOffset, right - mCornerLength, top - hOffset, mCornerPaint);
+//
+//        // Bottom-left corner: left side
+//        canvas.drawLine(left - hOffset, bottom + vOffset, left - hOffset, bottom - mCornerLength, mCornerPaint);
+//        // Bottom-left corner: bottom side
+//        canvas.drawLine(left - vOffset, bottom + hOffset, left + mCornerLength, bottom + hOffset, mCornerPaint);
+//
+//        // Bottom-right corner: right side
+//        canvas.drawLine(right + hOffset, bottom + vOffset, right + hOffset, bottom - mCornerLength, mCornerPaint);
+//        // Bottom-right corner: bottom side
+//        canvas.drawLine(right + vOffset, bottom + hOffset, right - mCornerLength, bottom + hOffset, mCornerPaint);
     }
 
     private boolean shouldGuidelinesBeShown() {
@@ -573,6 +712,23 @@ public class CropLayoutView extends View {
             mPressedHandle.updateCropWindow(x, y, mTotalCropRect, mSnapRadius);
         }
         invalidate();
+
+        notifyCropChange();
+    }
+
+    /**
+     * 通知crop listener，裁剪改变了
+     */
+    private void notifyCropChange() {
+        if (onCropParamsChangeListener != null) {
+            float left = Edge.LEFT.getCoordinate();
+            float top = Edge.TOP.getCoordinate();
+            float right = Edge.RIGHT.getCoordinate();
+            float bottom = Edge.BOTTOM.getCoordinate();
+            int width = getWidth();
+            int height = getHeight();
+            onCropParamsChangeListener.onCropChange(left / width, top / height, right / width, bottom / height);
+        }
     }
 
 }

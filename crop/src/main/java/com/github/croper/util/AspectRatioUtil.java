@@ -11,10 +11,10 @@
  * governing permissions and limitations under the License. 
  */
 
-package com.didikee.croper.util;
+package com.github.croper.util;
 
 import android.graphics.RectF;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 /**
  * Utility class for handling calculations involving a fixed aspect ratio.

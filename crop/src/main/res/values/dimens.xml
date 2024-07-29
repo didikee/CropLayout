@@ -1,12 +1,15 @@
 <resources>
-    <!--lib-->
+
+
+    <!--croplayoutview -->
     <dimen name="border_thickness">2dp</dimen>
-    <dimen name="corner_thickness">3dp</dimen>
+    <dimen name="corner_thickness">2dp</dimen>
     <dimen name="guideline_thickness">1px</dimen>
 
     <dimen name="target_radius">24dp</dimen>
     <dimen name="snap_radius">3dp</dimen>
-    <dimen name="corner_length">20dp</dimen>
+    <dimen name="corner_length">16dp</dimen>
+    <!--croplayoutview -->
 
 
 </resources>

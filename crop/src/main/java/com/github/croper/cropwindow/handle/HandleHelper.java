@@ -11,14 +11,14 @@
  * governing permissions and limitations under the License. 
  */
 
-package com.didikee.croper.cropwindow.handle;
+package com.github.croper.cropwindow.handle;
 
 import android.graphics.RectF;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
-import com.didikee.croper.cropwindow.edge.Edge;
-import com.didikee.croper.cropwindow.edge.EdgePair;
-import com.didikee.croper.util.AspectRatioUtil;
+import com.github.croper.cropwindow.edge.Edge;
+import com.github.croper.cropwindow.edge.EdgePair;
+import com.github.croper.util.AspectRatioUtil;
 
 
 /**

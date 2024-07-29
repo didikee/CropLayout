@@ -11,13 +11,14 @@
  * governing permissions and limitations under the License. 
  */
 
-package com.didikee.croper.util;
+package com.github.croper.util;
 
+import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Paint;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
-import com.didikee.croper.R;
+import com.github.croper.R;
 
 
 /**
@@ -78,5 +79,17 @@ public class PaintUtil {
         paint.setColor(resources.getColor(R.color.corner));
 
         return paint;
+    }
+    /**
+     * 将dip或dp值转换为px值，保证尺寸大小不变
+     *
+     * @param dipValue
+     * @param context context
+     *            （DisplayMetrics类中属性density）
+     * @return float cast to int
+     */
+    public static int dp2px(Context context, float dipValue) {
+        final float scale = context.getResources().getDisplayMetrics().density;
+        return (int) (dipValue * scale + 0.5f);
     }
 }
